@@ -11,7 +11,6 @@ export const compression = viteCompression({
 	ext: ".gz"
 })
 
- 
 export const buildConfig = {
 
 	chunkSizeWarningLimit: 1500,
@@ -23,4 +22,5 @@ export const buildConfig = {
 			assetFileNames: "assets/[ext]/[name]-[hash].[ext]"
 		}
 	}
-}	 
+}
+

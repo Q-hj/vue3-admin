@@ -1,4 +1,4 @@
-import { defineConfig, loadEnv, ConfigEnv, UserConfig } from "vite";
+import { defineConfig, loadEnv, ConfigEnv, UserConfig, PluginOption } from "vite";
 import { createHtmlPlugin } from "vite-plugin-html";
 import vue from "@vitejs/plugin-vue";
 import { resolve } from "path";
@@ -7,6 +7,7 @@ import { visualizer } from "rollup-plugin-visualizer";
 import { compression, buildConfig } from "./config/vite/construct";
 import VueSetupExtend from "vite-plugin-vue-setup-extend";
 import eslintPlugin from "vite-plugin-eslint";
+import { Plugin } from "vue";
 // import AutoImport from "unplugin-auto-import/vite";
 // import Components from "unplugin-vue-components/vite";
 // import { ElementPlusResolver } from "unplugin-vue-components/resolvers";
@@ -15,8 +16,16 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
 
 	const env = loadEnv(mode, process.cwd()); //环境变量
 
-	const isDev = env.NODE_ENV == "development";
-	const isProd = env.NODE_ENV == "production";
+
+
+	// * 打包去除 console.log && debugger
+	const { VITE_CLEAR_CONSOLE, VITE_CLEAR_DEBUGGER } = env
+	const pure_console = VITE_CLEAR_CONSOLE === 'true' ? 'console.log' : ''
+	const pure_debugger = VITE_CLEAR_DEBUGGER === 'true' ? 'debugger' : ''
+
+
+	const isDev = env.NODE_ENV === "development";
+	const isProd = env.NODE_ENV === "production";
 
 	return {
 		base: "./",
@@ -44,53 +53,45 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
 		},
 		plugins: [
 			vue(),
+
+			// * 替换index.html内容
 			createHtmlPlugin({
 				inject: {
 					data: {
-						title: env.VITE_APP_TITLE
+						title: env.VITE_APP_TITLE//替换 <%- title %>内容
 					}
 				}
 			}),
+
 			// * 使用 svg 图标
 			createSvgIconsPlugin({
 				iconDirs: [resolve(process.cwd(), "src/assets/icons")],
 				symbolId: "icon-[dir]-[name]"
 			}),
+
 			// * EsLint 报错信息显示在浏览器界面上
 			// eslintPlugin({
 			// 	cache:false,
 			// 	exclude:['./node_modules/**']
 			// }), 
+
 			// * name 可以写在 script 标签上
 			VueSetupExtend(),
+
 			compression,//压缩
+
 			// * 是否生成包预览(分析依赖包大小,方便做优化处理)
-			//  visualizer(),
+			visualizer({
+				open: true,
+				gzipSize: true,
+				brotliSize: true
+			}) as PluginOption,
 
-
-			// * demand import element
-			// AutoImport({
-			// 	resolvers: [ElementPlusResolver()]
-			// }),
-			// Components({
-			// 	resolvers: [ElementPlusResolver()]
-			// }),
 		],
-		// * 打包去除 console.log && debugger
-		esbuild: {
-			pure: ["console.log", "debugger"] || []
-		},
+		esbuild: { pure: [pure_console, pure_debugger].filter(e => e) },
 		build: {
-			outDir: env.VITE_OUTPUT,
+			outDir: env.VITE_BUILD_OUTPUT,
 			minify: "esbuild",
-			// esbuild 打包更快，但是不能去除 console.log，terser打包慢，但能去除 console.log
-			// minify: "terser",
-			// terserOptions: {
-			// 	compress: {
-			// 		drop_console: viteEnv.VITE_DROP_CONSOLE,
-			// 		drop_debugger: true
-			// 	}
-			// },
 			...buildConfig
 		}
 	};
